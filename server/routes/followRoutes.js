@@ -3,8 +3,8 @@ import followController from "../controllers/followController.js";
 import protect from "../middleware/authMiddleware.js";
 
 const router = express.Router()
-router.put("/:uid" , protect , followController.followUserRequest)
-
+router.put("/follow/:uid" , protect , followController.followUserRequest)
+router.put("/unfollow/:uid" , protect , followController.unfollowUserRequest)
 
 
 export default router
