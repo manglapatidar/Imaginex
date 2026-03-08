@@ -8,6 +8,9 @@ import authRoutes from "./routes/authRoutes.js"
 import followRoutes from "./routes/followRoutes.js"
 import errorHandler from "./middleware/errorHandler.js"
 import profileRoutes from "./routes/profileRoutes.js"
+import adminRoutes from "./routes/adminRoutes.js"
+import postRoutes from"./routes/postRoutes.js"
+
 
 dotenv.config()
 
@@ -22,8 +25,6 @@ connectDB()
 //Body Parser
 app.use(express.json())
 app.use(express.urlencoded())
-
-
 
 
 //Default Route 
@@ -41,7 +42,13 @@ app.use("/api/auth", authRoutes )
 app.use("/api/user", followRoutes )
 
 //Profile Routes
-app.use("/api/profile",profileRoutes )
+app.use("/api/profile", profileRoutes )
+
+// Admin Routes
+app.use("/api/admin", adminRoutes)
+
+// Post Routes
+app.use("/api/post", postRoutes)
 
 // Error Handler
 app.use(errorHandler)
