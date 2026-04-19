@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
+        unique : true,
         required: [true, "Please Enter Your Name"]
     },
     email: {
@@ -45,7 +46,7 @@ const userSchema = new mongoose.Schema({
 
     },
     isActive: {
-        type: String,
+        type: Boolean,
         default: true,
         required: true
     },

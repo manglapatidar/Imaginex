@@ -4,7 +4,7 @@ import Post from "../models/postModel.js"
 const getComments = async (req, res) => {
 
     const postId = req.params.postId
-    const comments = await Comment.find({ post: postId })
+    const comments = await Comment.find({ post: postId }).sort({ createdAt: -1 })
 
 
     if (!comments) {

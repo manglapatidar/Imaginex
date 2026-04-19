@@ -9,6 +9,8 @@ router.get("/posts", protect.forAdmin, adminController.getAllPosts)
 router.get("/reports", protect.forAdmin ,adminController.getReports)
 router.put("/user/:uid", protect.forAdmin ,adminController.updateUser)
 router.put("/post/:pid", protect.forAdmin,  adminController.updatePost)
+router.delete("/report/:rid", protect.forAdmin, adminController.deleteReport)
+router.delete("/post/:pid", protect.forAdmin, adminController.deletePost)
 
 
 export default router

@@ -14,7 +14,7 @@ router.post("/:pid", protect.forUser, postController.reportPost)
 
 
 // Save Post Routes
-router.post("/:pid/save", protect.forUser, savePostController.savePost)
+router.post("/:pid/save", protect.forUser, savePostController.toggleSavePost)
 
 
 // Comment Post Routes

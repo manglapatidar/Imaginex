@@ -1,8 +1,8 @@
 import Post from "../models/postModel.js"
 import Saved from "../models/savedPostModel.js"
 
-// Save Post
-const savePost = async (req, res) => {
+// Toggle Save Post
+const toggleSavePost = async (req, res) => {
     const userId = req.user._id
     const postId = req.params.pid
 
@@ -18,13 +18,12 @@ const savePost = async (req, res) => {
 
 
     // Check if post is already saved
-    const saveExists = await Saved.findOne({user : userId})
+    const saveExists = await Saved.findOne({user : userId, post: postId})
     if(saveExists){
-        res.status(409)
-        throw new Error("Post Already Saved!")
+        await Saved.findByIdAndDelete(saveExists._id)
+        res.status(200).json({ msg: "Post removed from collections", saved: false })
+        return
     }
-
-
 
     // Create Save Post
     const savedPost = new Saved({
@@ -34,14 +33,14 @@ const savePost = async (req, res) => {
 
 
     await savedPost.save()
-    await savedPost.populate('post')
+    // await savedPost.populate('post')
 
 
     if (!savedPost) {
         res.status(409)
         throw new Error("Post Not Saved!")
     }
-    res.status(201).json(savedPost)
+    res.status(201).json({ msg: "Post Saved", saved: true, savedPost})
 }
 
 
@@ -62,7 +61,7 @@ const getSavePosts = async (req, res) => {
 // Delete Saved Posts
 const removedSavedPost = async(req, res) => {
 
-await Saved.findOneAndDelete(req.params.pid)
+await Saved.findOneAndDelete({_id: req.params.pid, user: req.user._id})
 res.status(200).json({
     _id : req.params.pid,
     msg : "Saved Post Removed"
@@ -71,6 +70,6 @@ res.status(200).json({
 
 
 
-const savePostController = { savePost, getSavePosts , removedSavedPost }
+const savePostController = { toggleSavePost, getSavePosts , removedSavedPost }
 
 export default savePostController

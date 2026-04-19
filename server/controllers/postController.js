@@ -24,79 +24,91 @@ const generateAndPost = async (req, res) => {
     let userId = req.user.id
     let newPost
 
+    // Check if user Exists
+    const user = await User.findById(userId)
+    if(!user){
+        res.status(404)
+        throw new Error("User Not Found")
+    }
+
+    // Check if user have enough credits
+    if(user.credits < 1){
+        res.status(409)
+        throw new Error("No Enough Credits!")
+    }
+
     try {
 
         // Get Prompt
-        const { prompt, caption } = req.body
+        const { prompt } = req.body
 
         // Check if prompt is coming in body
-        if (!prompt || !caption) {
+        if ( !prompt) {
             res.status(409)
             throw new Error("Kindly Provide Prompt To Generate Image!")
         }
 
-        // Initialize Google Gen AI Instance
-        const ai = new GoogleGenAI({
+        // Generate image using a free no-key API
+        const encodedPrompt = encodeURIComponent(prompt);
+        // We add a random seed to ensure uniqueness for the same prompt
+        const seed = Math.floor(Math.random() * 1000000);
+        // Fetch raw image buffer
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=1024&height=1024&nologo=true`;
 
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) {
+            throw new Error("Failed to generate image from free API");
+        }
+        
+        const arrayBuffer = await imageResponse.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Save Locally
+        const filename = crypto.randomUUID() + ".png";
+        const filePath = path.join(__dirname, "../generated-content", filename);
+
+        // Write File Into server
+        fs.writeFileSync(filePath, buffer);
+
+        // Upload to cloudinary
+        const imageLink = await uploadToCloudinary(filePath)
+
+
+        // Remove Image From Server
+        fs.unlinkSync(filePath)
+
+        // Create Post
+        newPost = new Post({
+            user: userId,
+            imageLink: imageLink.secure_url,
+            prompt: prompt
         })
 
-        // Api Call To Genrate Image
-        const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-image-preview",
-            contents: prompt,
-        });
+        // Save Post To DB
+        await newPost.save()
 
-        console.log(response.candidates)
-
-        // Loop Through Correct Response
-        for (const part of response.candidates[0].content.parts) {
-            if (part.text) {
-                console.log(part.text);
-            } else if (part.inlineData) {
-                const imageData = part.inlineData.data;
-
-                // Convert Test To Image
-                const buffer = Buffer.from(imageData, "base64");
+        // Aggregate User Details in newPost Object
+        await newPost.populate('user')
 
 
-                // Save Locally
-                const filename = crypto.randomUUID() + ".png";
-                const filePath = path.join(__dirname, "../generated-content", filename);
-
-                // Write File Into server
-                fs.writeFileSync(filePath, buffer);
-
-                // Upload to cloudinary
-                const imageLink = await uploadToCloudinary(filePath)
+        // Update Credits
+        await User.findByIdAndUpdate(user._id, {credits : user.credits - 1}, {new : true})
 
 
-                // Remove Image From Server
-                fs.unlinkSync(filePath)
 
-                // Create Post
-                newPost = new Post({
-                    user: userId,
-                    imageLink: imageLink.secure_url,
-                    caption: caption
-                })
 
-                // Save Post To DB
-                await newPost.save()
 
-                // Aggregate User Details in newPost Object
-                await newPost.populate('user')
-            }
-        }
         res.status(201).json(newPost)
-    } catch (error) {
-        res.status(409)
-        throw new Error("Post Not Created!")
 
+
+    } catch (error) {
+        res.status(500)
+        throw new Error(error.message || "Post Not Created!")
     }
 }
 
 const getPosts = async (req, res) => {
-    const posts = await Post.find().populate('user')
+    const posts = await Post.find().populate('user').sort({ createdAt: -1 })
 
     if (!posts) {
         res.status(404)
@@ -184,6 +196,7 @@ const reportPost = async(req, res)=> {
     }
     res.status(201).json(newReport)
 }
+
 
 
 const postController = { generateAndPost, getPosts, getPost, likeAndUnlikePost , reportPost}

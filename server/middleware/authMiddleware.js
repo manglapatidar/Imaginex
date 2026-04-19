@@ -3,6 +3,8 @@ import User from "../models/userModel.js";
 
 
 const forUser = async (req, res, next) => {
+    
+    
     try {
         let token
         if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -11,7 +13,15 @@ const forUser = async (req, res, next) => {
             let decoded = jwt.verify(token, process.env.JWT_SECRET)
             let user = await User.findById(decoded.id).select("-password")
             req.user = user
+
+
+            if(user.isActive){
             next()
+            }else{
+            res.status(401)
+            throw new Error('You Are Banned! Contact Admin!')
+            }
+           
         } else {
             res.status(401)
             throw new Error('No Token Found!')

@@ -1,4 +1,7 @@
 import User from "../models/userModel.js"
+import Post from "../models/postModel.js"
+
+import Saved from "../models/savedPostModel.js"
 
 const getMyFollowers = async(req, res) => {
 
@@ -9,6 +12,44 @@ if(!user){
     throw new Error('User Not Found')
 }
 res.status(200).json(user.followers)
+}
+
+
+const getProfile = async(req, res) => {
+
+const {name} = req.params
+const user = await User.findOne({name : name}).populate('followers').populate('following')
+const posts = await Post.find({user : user._id}).sort({ createdAt: -1 })
+
+if(!user || !posts){
+    res.status(404)
+    throw new Error('User Not Found , Posts Not Found' )
+}
+
+const likedPosts = await Post.find({ likes: user._id }).sort({ createdAt: -1 }).populate('user')
+
+const savedRecords = await Saved.find({ user: user._id }).sort({ createdAt: -1 }).populate({
+   path: 'post',
+   populate: { path: 'user' }
+})
+const savedPosts = savedRecords.map(record => record.post)
+
+const profile = {
+    _id : user._id,
+    name : user.name,
+    email : user.email,
+    bio : user.bio,
+    followers : user.followers,
+    following : user.following,
+    credits : user.credits,
+    posts : posts,
+    likedPosts : likedPosts,
+    savedPosts : savedPosts,
+    createdAt : user.createdAt
+}
+
+
+res.status(200).json(profile)
 }
 
 
@@ -23,7 +64,7 @@ res.status(200).json(user.following)
 }
 
 
-const profileController = {getMyFollowers, getMyFollowings}
+const profileController = {getMyFollowers, getMyFollowings , getProfile}
 
 
 export default profileController
