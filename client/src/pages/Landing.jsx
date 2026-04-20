@@ -61,7 +61,7 @@ const Landing = () => {
           <Link to="/register" className="w-full sm:w-auto px-8 py-4 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold text-lg hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-violet-600/25 flex items-center justify-center gap-2">
             Start Creating <Wand2 className="w-5 h-5" />
           </Link>
-          <Link to="/explore" className="w-full sm:w-auto px-8 py-4 rounded-full glass-card text-white font-bold text-lg hover:bg-white/10 transition-colors flex items-center justify-center">
+          <Link to="/register" className="w-full sm:w-auto px-8 py-4 rounded-full glass-card text-white font-bold text-lg hover:bg-white/10 transition-colors flex items-center justify-center">
             Explore Feed
           </Link>
         </div>
