@@ -11,7 +11,7 @@ import followRoutes from "./routes/followRoutes.js"
 import errorHandler from "./middleware/errorHandler.js"
 import profileRoutes from "./routes/profileRoutes.js"
 import adminRoutes from "./routes/adminRoutes.js"
-import postRoutes from"./routes/postRoutes.js"
+import postRoutes from "./routes/postRoutes.js"
 import savedPostRoutes from "./routes/savedPostRoutes.js"
 
 dotenv.config()
@@ -34,14 +34,14 @@ app.use(express.urlencoded())
 
 
 // Auth Routes
-app.use("/api/auth", authRoutes )
+app.use("/api/auth", authRoutes)
 
 //Follow Routes
 
-app.use("/api/user", followRoutes )
+app.use("/api/user", followRoutes)
 
 //Profile Routes
-app.use("/api/profile", profileRoutes )
+app.use("/api/profile", profileRoutes)
 
 // Admin Routes
 app.use("/api/admin", adminRoutes)
@@ -56,16 +56,16 @@ app.use("/api/saved-posts", savedPostRoutes)
 const buildPath = path.resolve(__dirname, '../client/dist');
 
 // Static File Serving & SPA Routing
-if (process.env.NODE_ENV === "production"){
+if (process.env.NODE_ENV === "production") {
     // Serve static files from the build directory
     app.use(express.static(buildPath));
 
-    // Catch-all handler for any request not handled by express.static
-    app.use((req, res) => {
+    // Express v5 requires a named parameter for wildcards (/*splat)
+    app.get('/*splat', (req, res) => {
         res.sendFile(path.join(buildPath, 'index.html'), (err) => {
             if (err) {
-                // If index.html is missing, this provides a clearer error
-                res.status(500).send("Build File index.html not found. It seems your frontend didn't build correctly. Ensure the Build Command on Render is set to 'npm run build'");
+                // If index.html is missing , this provides a clearer error
+                res.status(500).send("Build File index.html not found. Ensure you ran 'npm run build'")
             }
         });
     });
@@ -80,6 +80,6 @@ app.use(errorHandler)
 
 
 
-app.listen(PORT , () => {
+app.listen(PORT, () => {
     console.log(`SERVER IS RUNNING AT PORT : ${PORT}`.bgBlue.black)
 })

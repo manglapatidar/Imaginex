@@ -7,11 +7,10 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server/server.js",
+   
     "server": "node server/server.js",
     "client": "cd client && npm run dev",
-    "build": "npm install && npm run build:client",
-    "build:client": "cd client && npm install && npm run build",
+    "build": "npm install && npm run dev",
     "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "dependencies": {
