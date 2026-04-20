@@ -60,12 +60,12 @@ if (process.env.NODE_ENV === "production"){
     // Serve static files from the build directory
     app.use(express.static(buildPath));
 
-    // Express v5 requires a named parameter for wildcards (/*splat)
-    app.get('/*splat', (req, res) => {
+    // Catch-all handler for any request not handled by express.static
+    app.use((req, res) => {
         res.sendFile(path.join(buildPath, 'index.html'), (err) => {
-            if (err){
-                // If index.html is missing , this provides a clearer error
-                res.status(500).send("Build File index.html not found. Ensure you ran 'npm run build'")
+            if (err) {
+                // If index.html is missing, this provides a clearer error
+                res.status(500).send("Build File index.html not found. It seems your frontend didn't build correctly. Ensure the Build Command on Render is set to 'npm run build'");
             }
         });
     });
