@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import * as fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,117 +5,139 @@ import uploadToCloudinary from "../middleware/cloudinaryMiddleware.js";
 import Post from "../models/postModel.js";
 import User from "../models/userModel.js";
 import Report from "../models/reportModel.js";
-
+import Groq from "groq-sdk";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-
-// Take Prompt and Captions
-// Generate Image With AI Model
-// Store On Local Server
-// Upload And On Cloudinary
-// Remove From Server
-// Respond With Caption And Post
-
-
 const generateAndPost = async (req, res) => {
-
     let userId = req.user.id
     let newPost
 
-    // Check if user Exists
+    // Check if user exists
     const user = await User.findById(userId)
-    if(!user){
+    if (!user) {
         res.status(404)
         throw new Error("User Not Found")
     }
 
-    // Check if user have enough credits
-    if(user.credits < 1){
+    // Check if user has enough credits
+    if (user.credits < 1) {
         res.status(409)
-        throw new Error("No Enough Credits!")
+        throw new Error("Not Enough Credits!")
     }
 
     try {
-
-        // Get Prompt
         const { prompt } = req.body
 
-        // Check if prompt is coming in body
-        if ( !prompt) {
+        if (!prompt) {
             res.status(409)
             throw new Error("Kindly Provide Prompt To Generate Image!")
         }
 
-        // Generate image using a free no-key API
-        const encodedPrompt = encodeURIComponent(prompt);
-        // We add a random seed to ensure uniqueness for the same prompt
+        let enhancedPrompt = prompt;
+        try {
+            const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+            const chatCompletion = await groq.chat.completions.create({
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are an AI assistant that enhances short prompts into highly detailed, creative, and beautiful image generation prompts. Output ONLY the enhanced prompt, no extra text."
+                    },
+                    {
+                        role: "user",
+                        content: prompt
+                    }
+                ],
+                model: "llama-3.1-8b-instant",
+            });
+            enhancedPrompt = chatCompletion.choices[0]?.message?.content || prompt;
+        } catch (err) {
+            console.error("Groq enhancement failed, using original prompt:", err);
+        }
+
+        const encodedPrompt = encodeURIComponent(enhancedPrompt);
         const seed = Math.floor(Math.random() * 1000000);
-        // Fetch raw image buffer
         const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=1024&height=1024&nologo=true`;
 
-        const imageResponse = await fetch(imageUrl);
+        // ✅ 30s timeout so fetch doesn't hang forever
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+
+        let imageResponse = await fetch(imageUrl, { 
+            signal: controller.signal,
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ImagineX/1.0' }
+        });
+        clearTimeout(timeout);
+
         if (!imageResponse.ok) {
-            throw new Error("Failed to generate image from free API");
+            console.warn("Pollinations.ai failed, falling back to LoremFlickr");
+            // Extract a keyword from the prompt for the fallback image
+            const keyword = prompt.split(' ').slice(0, 2).join(',');
+            const fallbackUrl = `https://loremflickr.com/1024/1024/${encodeURIComponent(keyword)}`;
+            imageResponse = await fetch(fallbackUrl);
+            
+            if (!imageResponse.ok) {
+                throw new Error("Failed to generate image from free API");
+            }
         }
-        
+
+        // ✅ Ensure we got an actual image, not an HTML error page
+        const contentType = imageResponse.headers.get("content-type");
+        if (!contentType || !contentType.startsWith("image/")) {
+            throw new Error("API did not return a valid image. Please try again.");
+        }
+
         const arrayBuffer = await imageResponse.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // Save Locally
-        const filename = crypto.randomUUID() + ".png";
-        const filePath = path.join(__dirname, "../generated-content", filename);
+        // ✅ Create directory if it doesn't exist
+        const generatedDir = path.join(__dirname, "../generated-content");
+        if (!fs.existsSync(generatedDir)) {
+            fs.mkdirSync(generatedDir, { recursive: true });
+        }
 
-        // Write File Into server
+        const filename = crypto.randomUUID() + ".png";
+        const filePath = path.join(generatedDir, filename);
+
         fs.writeFileSync(filePath, buffer);
 
-        // Upload to cloudinary
-        const imageLink = await uploadToCloudinary(filePath)
+        const imageLink = await uploadToCloudinary(filePath);
+        fs.unlinkSync(filePath);
 
-
-        // Remove Image From Server
-        fs.unlinkSync(filePath)
-
-        // Create Post
         newPost = new Post({
             user: userId,
             imageLink: imageLink.secure_url,
             prompt: prompt
         })
 
-        // Save Post To DB
         await newPost.save()
-
-        // Aggregate User Details in newPost Object
         await newPost.populate('user')
 
-
-        // Update Credits
-        await User.findByIdAndUpdate(user._id, {credits : user.credits - 1}, {new : true})
-
-
-
-
+        await User.findByIdAndUpdate(user._id, { credits: user.credits - 1 }, { new: true })
 
         res.status(201).json(newPost)
 
-
     } catch (error) {
+        // ✅ Handle timeout separately
+        if (error.name === 'AbortError') {
+            res.status(504)
+            throw new Error("Image generation timed out. Please try again.")
+        }
         res.status(500)
         throw new Error(error.message || "Post Not Created!")
     }
 }
 
 const getPosts = async (req, res) => {
-    const posts = await Post.find().populate('user').sort({ createdAt: -1 })
-
-    if (!posts) {
-        res.status(404)
-        throw new Error("Posts Not Found")
+    try {
+        const posts = await Post.find().populate('user').sort({ createdAt: -1 })
+        res.status(200).json(posts)
+    } catch (error) {
+        res.status(500)
+        throw new Error("Failed to fetch posts")
     }
-
-    res.status(200).json(posts)
 }
+
 const getPost = async (req, res) => {
     const post = await Post.findById(req.params.pid).populate('user')
 
@@ -129,16 +150,13 @@ const getPost = async (req, res) => {
 }
 
 const likeAndUnlikePost = async (req, res) => {
-    let currentUser = await User.findById(req.user._id)
+    const currentUser = await User.findById(req.user._id)
 
-    // Check If User Exist
     if (!currentUser) {
         res.status(404)
         throw new Error('User Not Found')
     }
 
-
-    // Check if post exist
     const post = await Post.findById(req.params.pid).populate('user')
 
     if (!post) {
@@ -146,59 +164,48 @@ const likeAndUnlikePost = async (req, res) => {
         throw new Error("Post Not Found")
     }
 
-
-    // Check if already liked
     if (post.likes.includes(currentUser._id)) {
-        // Dislike
-        // Remove Follower From Likes
-        let updatedLikesList = post.likes.filter(like => like.toString() !== currentUser._id.toString())
-        post.likes = updatedLikesList
+        // Unlike
+        post.likes = post.likes.filter(like => like.toString() !== currentUser._id.toString())
         await post.save()
-
     } else {
         // Like
-        // Add Follower in Liked
         post.likes.push(currentUser._id)
         await post.save()
-
     }
-    // Populate after save using the post model directly
+
     await Post.populate(post, { path: 'likes' })
     res.status(200).json(post)
 }
 
-
-const reportPost = async(req, res)=> {
-    const {text} = req.body
+const reportPost = async (req, res) => {
+    const { text } = req.body
     const postId = req.params.pid
     const userId = req.user._id
 
-
-    if (!text){
+    if (!text) {
         res.status(409)
         throw new Error("Please Enter Text")
     }
 
     const newReport = new Report({
-        user : userId,
-        post : postId,
-        text : text
+        user: userId,
+        post: postId,
+        text: text
     })
 
     await newReport.save()
     await newReport.populate("user")
     await newReport.populate("post")
 
-
-    if(!newReport){
+    if (!newReport) {
         res.status(409)
         throw new Error("Unable to Report this Post")
     }
+
     res.status(201).json(newReport)
 }
 
-
-
-const postController = { generateAndPost, getPosts, getPost, likeAndUnlikePost , reportPost}
+const postController = { generateAndPost, getPosts, getPost, likeAndUnlikePost, reportPost }
 
 export default postController

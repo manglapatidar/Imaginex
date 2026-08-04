@@ -1,37 +1,29 @@
-
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { Home, Compass, PlusSquare, User, Sparkles, Settings, LogOut, Layout, LayoutDashboard } from 'lucide-react';
-
 import { useDispatch, useSelector } from 'react-redux';
 import { LogoutUser } from '../features/auth/authSlice';
 import { resetProfile } from '../features/profile/profileSlice';
 
 const Sidebar = () => {
-  
+  const { user, isSuccess } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
-  const {user, isSuccess} = useSelector(state => state.auth)
-
-
-  const dispatch = useDispatch()
-    const navigate = useNavigate()
-
-
+  // ✅ All hooks above — safe to early return now
+  if (!user) return null;
 
   const navItems = [
-    { icon: user.isAdmin ? LayoutDashboard : Home, label: user.isAdmin ? "Dashboard" : 'Feed', path: user.isAdmin ? "/admin/dashboard" : '/auth/feed'},
+    { icon: user.isAdmin ? LayoutDashboard : Home, label: user.isAdmin ? "Dashboard" : 'Feed', path: user.isAdmin ? "/admin/dashboard" : '/auth/feed' },
     { icon: Compass, label: 'Explore', path: '/auth/explore' },
     { icon: PlusSquare, label: 'Generate', path: '/auth/generate' },
-    { icon: User, label: 'Profile', path: `/auth/profile/${user?.name}` },
+    { icon: User, label: 'Profile', path: `/auth/profile/${user.name}` },
   ];
 
-const handleLogout = () => {
-  dispatch(LogoutUser())
-  if(isSuccess){
-    dispatch(resetProfile())
-    navigate("/login")
-
-  }
-}
+  const handleLogout = async () => {
+    await dispatch(LogoutUser());
+    dispatch(resetProfile());
+    navigate("/login");
+  };
 
   return (
     <>
@@ -66,8 +58,10 @@ const handleLogout = () => {
         </nav>
 
         <div className="p-4 mb-4 mt-auto">
-          
-          <button onClick={handleLogout} className="flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-red-400 cursor-pointer transition-all mt-1">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-red-400 cursor-pointer transition-all mt-1"
+          >
             <LogOut className="w-5 h-5" />
             <span>Log out</span>
           </button>
