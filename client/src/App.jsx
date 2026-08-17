@@ -15,8 +15,8 @@ import PostDetail from './pages/PostDetail';
 import { ToastContainer } from 'react-toastify';
 import PrivateComponent from './components/PrivateComponent';
 import PrivateAdminComponent from './components/admin/PrivateAdminComponent';
-import AdminDashboard from './pages/admin/adminDashboard';
-import AdminReports from './pages/admin/adminReports';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminReports from './pages/admin/AdminReports';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminPosts from './pages/admin/AdminPosts';
 
