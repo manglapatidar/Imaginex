@@ -1,2 +1,7 @@
 .env
 node_modules
+client/dist
+client/node_modules
+server/generated-content/*
+!.gitkeep
+*.log
